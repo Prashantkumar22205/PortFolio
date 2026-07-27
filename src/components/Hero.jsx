@@ -1,47 +1,104 @@
-import Typewriter from 'typewriter-effect';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useAntigravity } from '../hooks/useAntigravity';
+import profile from '../assets/pic.png';
+
+const RESUME_LINK = "https://drive.google.com/file/d/1wbFl0agMoyyWur_G9ftdMsAkx3zbR4w6/view?usp=sharing";
+
+const ROLES = [
+  'Full Stack Developer',
+  'MERN Stack Engineer',
+  'Backend Developer',
+  'AI App Builder',
+];
 
 const Hero = () => {
+  const controls = useAntigravity();
+  const [roleIndex, setRoleIndex] = useState(0);
+  const [displayed, setDisplayed] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const target = ROLES[roleIndex];
+    let timeout;
+    if (!deleting && displayed.length < target.length) {
+      timeout = setTimeout(() => setDisplayed(target.slice(0, displayed.length + 1)), 70);
+    } else if (!deleting && displayed.length === target.length) {
+      timeout = setTimeout(() => setDeleting(true), 1800);
+    } else if (deleting && displayed.length > 0) {
+      timeout = setTimeout(() => setDisplayed(displayed.slice(0, -1)), 40);
+    } else {
+      setDeleting(false);
+      setRoleIndex((i) => (i + 1) % ROLES.length);
+    }
+    return () => clearTimeout(timeout);
+  }, [displayed, deleting, roleIndex]);
+
   return (
-    <section id="home" className="section" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: 150 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '50px', width: '100%', alignItems: 'center' }}>
-        
-        <div style={{ paddingLeft: '50px' }}>
-          <h1 style={{ fontSize: '2.8rem', paddingBottom: 15 }}>
-            Hi There! <span className="wave" role="img" aria-labelledby="wave">👋🏻</span>
-          </h1>
+    <motion.section animate={controls} id="home" className="hero">
+      <div className="hero-grid">
 
-          <h1 style={{ fontSize: '3rem' }}>
-            I'M <strong className="purple">PRASHANT KUMAR</strong>
-          </h1>
-
-          <div style={{ padding: '50px 0', fontSize: '2.5rem', color: 'var(--imp-text-color)', fontWeight: 600 }}>
-            <Typewriter
-              options={{
-                strings: [
-                  "Full Stack Developer",
-                  "MERN Stack Engineer",
-                  "Backend Architect",
-                  "Open Source Contributor",
-                ],
-                autoStart: true,
-                loop: true,
-                deleteSpeed: 50,
-              }}
-            />
+        <motion.div
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        >
+          <div className="hero-badge">
+            <span className="dot" /> Available for Internships & Full-time Roles
           </div>
-        </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: '50px' }}>
-          {/* using a placeholder image for home-main.svg since we don't have the asset */}
-          <img 
-            src="https://raw.githubusercontent.com/soumyajit4419/Portfolio/master/src/Assets/home-main.svg" 
-            alt="home pic" 
-            style={{ maxHeight: 450, width: '100%', objectFit: 'contain' }} 
-          />
-        </div>
+          <h1 className="hero-name">
+            Hi, I'm<br />
+            Prashant Kumar <span className="wave" role="img" aria-label="waving hand">👋🏻</span>
+          </h1>
+
+          <p className="hero-role">
+            {displayed}<span className="cursor" aria-hidden="true" />
+          </p>
+
+          <p className="hero-desc">
+            A <strong>MERN Stack developer</strong> passionate about building scalable web apps and
+            solving real-world problems with technology — including AI-powered ones.
+            Currently in 4th year B.Tech (CSE) at{' '}
+            <span className="accent">ABES Engineering College</span>, Ghaziabad.
+          </p>
+
+          <div className="hero-ctas">
+            <a href="#projects" className="btn btn-primary">
+              View My Work ↓
+            </a>
+            <a href={RESUME_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Download CV
+            </a>
+          </div>
+
+          <div className="hero-socials">
+            <a href="https://github.com/Prashantkumar22205" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            </a>
+            <a href="https://www.linkedin.com/in/prashant-kumar-868308296" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            </a>
+            <a href="mailto:prashantkumar100185@gmail.com" aria-label="Email">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </a>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="hero-img-wrap"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.15 }}
+        >
+          <img src={profile} alt="Prashant Kumar — developer illustration"  className="hero-img" />
+        </motion.div>
 
       </div>
-    </section>
+    </motion.section>
   );
 };
 
