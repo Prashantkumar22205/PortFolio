@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import Tilt from 'react-parallax-tilt';
 import { useAntigravity } from '../hooks/useAntigravity';
-import photoImg from '../assets/photo.png';
+
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 30 },
