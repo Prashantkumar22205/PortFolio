@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAntigravity } from '../hooks/useAntigravity';
-import profile from '../assets/pic.png';
+import profile from '../assets/pic3.png';
 
 const RESUME_LINK = "https://drive.google.com/file/d/1wbFl0agMoyyWur_G9ftdMsAkx3zbR4w6/view?usp=sharing";
 
