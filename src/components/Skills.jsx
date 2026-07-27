@@ -22,7 +22,7 @@ const SKILL_GROUPS = [
     label: 'Frontend Development',
     skills: [
       { icon: <DiReact />,        name: 'React.js' },
-      { icon: <SiRedux />,        name: 'Redux / Context API' },
+      // { icon: <SiRedux />,        name: 'Redux / Context API' },
       { icon: <DiJavascript1 />,  name: 'JavaScript (ES6+)' },
       { icon: <DiHtml5 />,        name: 'HTML5' },
       { icon: <DiCss3 />,         name: 'CSS3' },
@@ -67,12 +67,12 @@ const SKILL_GROUPS = [
       { icon: <DiGit />,             name: 'Git' },
       { icon: <SiGithub />,          name: 'GitHub' },
       { icon: <SiPostman />,         name: 'Postman' },
-      { icon: <SiDocker />,          name: 'Docker' },
+      // { icon: <SiDocker />,          name: 'Docker' },
       { icon: <Cloud size={32} />,   name: 'AWS (Basic)' },
       { icon: <SiVercel />,          name: 'Vercel' },
       { icon: <SiRender />,          name: 'Render' },
       { icon: <Code size={32} />,    name: 'VS Code' },
-      { icon: <Workflow size={32} />, name: 'GitHub Actions' },
+      // { icon: <Workflow size={32} />, name: 'GitHub Actions' },
     ],
   },
 ];
