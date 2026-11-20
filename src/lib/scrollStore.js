@@ -1,4 +1,5 @@
 export const HERO_TIMELINE = {
+  SCROLL_RANGE: 1,
   TAU: 0.1,
   HOLD_END: 0.1,
   CHROME_START: 0.06,
@@ -18,7 +19,6 @@ const listeners = new Set();
 export const scrollState = { scrollY: 0, heroProgress: 0, smoothProgress: 0, dt: 0, time: 0, heroVisible: false };
 let scrollMotionEnabled = true;
 let heroTop = 0;
-let heroHeight = 1;
 let viewportHeight = window.innerHeight || 1;
 let lenisInstance = null;
 let heroStage = null;
@@ -28,9 +28,8 @@ export const subscribeScroll = (listener) => {
   return () => listeners.delete(listener);
 };
 
-export const setHeroMetrics = (top, height, viewport = window.innerHeight || 1, stage = null) => {
+export const setHeroMetrics = (top, viewport = window.innerHeight || 1, stage = null) => {
   heroTop = top;
-  heroHeight = Math.max(height, 1);
   viewportHeight = Math.max(viewport, 1);
   heroStage = stage;
 };
@@ -48,7 +47,7 @@ export const clamp01 = (value) => Math.max(0, Math.min(1, value));
 export const phase = (value, start, end) => clamp01((value - start) / (end - start));
 
 export function publishFrame(scrollY, dt, time) {
-  const progress = clamp01((scrollY - heroTop) / Math.max(1, heroHeight - viewportHeight));
+  const progress = clamp01((scrollY - heroTop) / Math.max(1, viewportHeight * HERO_TIMELINE.SCROLL_RANGE));
   scrollState.scrollY = scrollY;
   scrollState.heroProgress = progress;
   scrollState.dt = dt;

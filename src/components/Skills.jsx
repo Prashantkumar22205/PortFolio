@@ -107,11 +107,21 @@ const Skills = () => {
             Technologies, frameworks, and developer tools I use to build robust, scalable applications.
           </motion.p>
 
-          <div className="discipline-tabs" role="tablist" aria-label="Choose a discipline">{disciplines.map((item, index) => <button role="tab" aria-selected={active === index} className={active === index ? 'discipline-tab active' : 'discipline-tab'} onClick={() => setActive(index)} key={item.label}>{String(index + 1).padStart(2, '0')} / {item.label}</button>)}</div>
+          <div className="discipline-tabs" role="tablist" aria-label="Choose a discipline">{disciplines.map((item, index) => <button id={`discipline-tab-${index}`} type="button" role="tab" aria-controls="discipline-panel" aria-selected={active === index} tabIndex={active === index ? 0 : -1} className={active === index ? 'discipline-tab active' : 'discipline-tab'} onClick={() => setActive(index)} onKeyDown={(event) => {
+            let next;
+            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (active + 1) % disciplines.length;
+            else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (active - 1 + disciplines.length) % disciplines.length;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = disciplines.length - 1;
+            else return;
+            event.preventDefault();
+            setActive(next);
+            document.getElementById(`discipline-tab-${next}`)?.focus();
+          }} key={item.label}><span className="discipline-number">{String(index + 1).padStart(2, '0')}</span><span className="discipline-label">{item.label}</span><span className="discipline-indicator" aria-hidden="true">↗</span></button>)}</div>
           <p className="discipline-note">{disciplines[active].note}</p>
           <ol className="skills-steps"><li><b>01</b> Understand the problem</li><li><b>02</b> Choose the right tools</li><li><b>03</b> Build, test, improve</li></ol>
           <div className="skills-wrap">
-            <AnimatePresence mode="wait"><motion.div key={active} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}>{disciplines[active].groups.map((gi) => {
+            <AnimatePresence mode="wait"><motion.div id="discipline-panel" role="tabpanel" aria-labelledby={`discipline-tab-${active}`} key={active} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}>{disciplines[active].groups.map((gi) => {
               const { label, skills } = SKILL_GROUPS[gi];
               return (
               <motion.div key={label} {...fadeUp(0.1 + gi * 0.06)}>

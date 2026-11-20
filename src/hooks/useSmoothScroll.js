@@ -24,7 +24,7 @@ export default function useSmoothScroll({ active, progressRef, cursorRef }) {
       hero = document.querySelector('.hero');
       if (hero) {
         const rect = hero.getBoundingClientRect();
-        setHeroMetrics(rect.top + window.scrollY, hero.offsetHeight, window.innerHeight, hero.querySelector('.hero-stage'));
+        setHeroMetrics(rect.top + window.scrollY, window.innerHeight, hero.querySelector('.hero-stage'));
       }
       updateNavHeight();
     };
