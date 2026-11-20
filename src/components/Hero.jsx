@@ -41,10 +41,12 @@ const Hero = () => {
 
   return (
     <motion.section animate={controls} id="home" className="hero">
+      <div className="hero-stage">
       <div className="hero-grid">
 
         <motion.div
-          initial={{ opacity: 0, x: -40 }}
+          className="hero-copy"
+          initial={{ opacity: 1, x: 0 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: 'easeOut' }}
         >
@@ -114,6 +116,7 @@ const Hero = () => {
 
       </div>
       <div className="hero-bottom"><span><i className="scroll-line" /> Scroll to discover</span><span>01 / PRESENCE</span></div>
+      </div>
     </motion.section>
   );
 };

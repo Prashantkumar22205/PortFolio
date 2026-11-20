@@ -1,212 +1,225 @@
 import { useEffect, useRef } from 'react';
+import { HERO_TIMELINE, easeInOutCubic, easeOutCubic, phase, scrollState, subscribeScroll } from '../lib/scrollStore';
 
-const EFFECT = {
-  SCATTER_RANGE: 0.45,
+const SAND_CONFIG = {
   CELL_SIZE: 3,
   MOBILE_CELL_SIZE: 4,
-  DOT_RADIUS_MIN: 0.5,
-  DOT_RADIUS_MAX: 1.1,
-  MAX_DISTANCE: 320,
-  WIND_ANGLE: -20,
-  SWEEP: 0.35,
-  PHOTO_FADE_END: 0.35,
-  PARTICLE_FADE_IN: 0.12,
-  PARTICLE_EMPTY_AT: 0.85,
-  LERP: 0.12,
-  MAX_DPR: 2,
+  SMALL_SCREEN_CELL_SIZE: 5,
+  DOT_MIN: 0.5,
+  DOT_MAX: 1.1,
+  MAX_DPR: 1.5,
   SHADOW_GAMMA: 0.75,
   SHADOW_LIFT: 34,
+  WIND_ANGLE: -20,
+  ANGLE_NOISE: 35,
+  MAX_DISTANCE: 320,
+  SWEEP: 0.35,
+  RANDOM_DELAY: 0.15,
+  TURBULENCE: 2.4,
+  ADAPT_FRAMES: 30,
+  SLOW_FRAME_MS: 20,
+  RECOVER_FRAME_MS: 17,
+  PHOTO_COLOR_BUCKETS: [3, 3, 3],
+  ALPHA_STEPS: 6,
 };
 
-const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
-const smoothstep = (start, end, value) => {
-  const t = clamp((value - start) / (end - start));
-  return t * t * (3 - 2 * t);
+const clamp01 = (value) => Math.max(0, Math.min(1, value));
+const smoothstep = (value) => value * value * (3 - 2 * value);
+const rand = (seed) => {
+  const n = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+  return n - Math.floor(n);
 };
-const random = (seed) => {
-  const value = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
-  return value - Math.floor(value);
-};
+const liftedChannel = (value) => clamp01(Math.pow(value / 255, SAND_CONFIG.SHADOW_GAMMA) + SAND_CONFIG.SHADOW_LIFT / 255) * 255;
+
+function buildPalette() {
+  const palette = [];
+  const [rLevels, gLevels, bLevels] = SAND_CONFIG.PHOTO_COLOR_BUCKETS;
+  for (let r = 0; r < rLevels; r++) for (let g = 0; g < gLevels; g++) for (let b = 0; b < bLevels; b++) {
+    palette.push(`rgb(${Math.round(r * 255 / (rLevels - 1))},${Math.round(g * 255 / (gLevels - 1))},${Math.round(b * 255 / (bLevels - 1))})`);
+  }
+  return palette;
+}
+const PALETTE = buildPalette();
 
 export default function SandPortrait({ src, alt, className = '' }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const context = canvas?.getContext('2d');
-    if (!canvas || !context) return undefined;
+    const ctx = canvas?.getContext('2d', { alpha:true });
+    if (!canvas || !ctx) return undefined;
 
     const image = new Image();
     image.src = src;
-    let particles;
-    let frame = 0;
-    let resizeTimeout;
+    let particles = null;
     let visible = false;
-    let currentProgress = 0;
-    let targetProgress = 0;
-    let motionEnabled = true;
-    let dead = false;
-    let width = 0;
-    let height = 0;
-    let dpr = 1;
+    let resizeObserver;
+    let resizeTimer;
+    let sampleTotal = 0;
+    let averageFrame = 0;
+    let drawStride = 1;
+    let lastPaintedProgress = -1;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let motionEnabled = document.documentElement.dataset.motion !== 'off' && !reducedMotion.matches;
 
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const syncMotion = () => {
-      motionEnabled = document.documentElement.dataset.motion !== 'off' && !prefersReducedMotion.matches;
-      if (!motionEnabled) {
-        targetProgress = 0;
-        currentProgress = 0;
-      }
-      requestDraw();
-    };
-
-    const rebuild = () => {
-      width = canvas.clientWidth;
-      height = canvas.clientHeight;
+    const buildParticles = () => {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
       if (!width || !height || !image.complete || !image.naturalWidth) return;
-      dpr = Math.min(window.devicePixelRatio || 1, EFFECT.MAX_DPR);
+      const dpr = Math.min(window.devicePixelRatio || 1, SAND_CONFIG.MAX_DPR);
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
-      const cssDrawWidth = Math.round(image.naturalWidth * scale);
-      const cssDrawHeight = Math.round(image.naturalHeight * scale);
-      const drawWidth = Math.round(cssDrawWidth * dpr);
-      const drawHeight = Math.round(cssDrawHeight * dpr);
-      const offsetX = (width - cssDrawWidth) / 2;
-      const offsetY = (height - cssDrawHeight) / 2;
+      const drawWidth = Math.max(1, Math.round(image.naturalWidth * scale * dpr));
+      const drawHeight = Math.max(1, Math.round(image.naturalHeight * scale * dpr));
+      const offsetX = (width * dpr - drawWidth) / 2;
+      const offsetY = (height * dpr - drawHeight) / 2;
       const source = document.createElement('canvas');
       source.width = drawWidth;
       source.height = drawHeight;
-      const sourceContext = source.getContext('2d', { willReadFrequently: true });
-      if (!sourceContext) return;
-      sourceContext.drawImage(image, 0, 0, drawWidth, drawHeight);
-      const pixels = sourceContext.getImageData(0, 0, drawWidth, drawHeight).data;
-      const cell = width < 600 ? EFFECT.MOBILE_CELL_SIZE : EFFECT.CELL_SIZE;
-      const step = Math.max(1, Math.round(cell * dpr));
-      const capacity = Math.ceil(drawWidth / step) * Math.ceil(drawHeight / step);
-      const x = new Float32Array(capacity), y = new Float32Array(capacity);
-      const radius = new Float32Array(capacity), alpha = new Float32Array(capacity);
-      const red = new Uint8Array(capacity), green = new Uint8Array(capacity), blue = new Uint8Array(capacity);
+      const sourceCtx = source.getContext('2d', { willReadFrequently:true });
+      if (!sourceCtx) return;
+      sourceCtx.drawImage(image, 0, 0, drawWidth, drawHeight);
+      const data = sourceCtx.getImageData(0, 0, drawWidth, drawHeight).data;
+      const cellCss = width < 430 ? SAND_CONFIG.SMALL_SCREEN_CELL_SIZE : width < 900 ? SAND_CONFIG.MOBILE_CELL_SIZE : SAND_CONFIG.CELL_SIZE;
+      const cell = Math.max(1, Math.round(cellCss * dpr));
+      const capacity = Math.ceil(drawWidth / cell) * Math.ceil(drawHeight / cell);
+      const homeX = new Float32Array(capacity), homeY = new Float32Array(capacity);
+      const radius = new Float32Array(capacity), delay = new Float32Array(capacity);
       const directionX = new Float32Array(capacity), directionY = new Float32Array(capacity);
       const speed = new Float32Array(capacity), seed = new Float32Array(capacity);
-      let total = 0;
+      const group = new Uint8Array(capacity);
+      const groupCounts = new Uint32Array(PALETTE.length * SAND_CONFIG.ALPHA_STEPS);
+      const [rLevels,gLevels,bLevels] = SAND_CONFIG.PHOTO_COLOR_BUCKETS;
+      let count = 0;
 
-      for (let py = step / 2; py < drawHeight; py += step) {
-        for (let px = step / 2; px < drawWidth; px += step) {
-          const sourceIndex = (Math.floor(py) * drawWidth + Math.floor(px)) * 4;
-          const pixelAlpha = pixels[sourceIndex + 3] / 255;
-          if (pixelAlpha <= 0.5) continue;
-          const luminance = (pixels[sourceIndex] * 0.2126 + pixels[sourceIndex + 1] * 0.7152 + pixels[sourceIndex + 2] * 0.0722) / 255;
-          const seedValue = random(sourceIndex + 3);
-          const angle = (EFFECT.WIND_ANGLE + (random(sourceIndex + 8) * 70 - 35)) * Math.PI / 180;
-          const cssX = offsetX + px / dpr;
-          const cssY = offsetY + py / dpr;
-          const liftChannel = (channel) => clamp(Math.pow(channel / 255, EFFECT.SHADOW_GAMMA) * 255 + EFFECT.SHADOW_LIFT, 0, 255);
-          const lifted = clamp(Math.pow(luminance, EFFECT.SHADOW_GAMMA) * 0.78 + EFFECT.SHADOW_LIFT / 255, 0, 1);
-          const sparkle = random(sourceIndex + 10);
-          const whiteMix = sparkle < 0.13 ? 0.28 : 0;
-          const accentMix = sparkle > 0.975 ? 0.35 : 0;
-          x[total] = cssX;
-          y[total] = cssY;
-          radius[total] = EFFECT.DOT_RADIUS_MIN + (EFFECT.DOT_RADIUS_MAX - EFFECT.DOT_RADIUS_MIN) * clamp(lifted);
-          alpha[total] = pixelAlpha;
-          red[total] = Math.round((liftChannel(pixels[sourceIndex]) * (1-whiteMix-accentMix)) + (239 * whiteMix) + (240 * accentMix));
-          green[total] = Math.round((liftChannel(pixels[sourceIndex+1]) * (1-whiteMix-accentMix)) + (233 * whiteMix) + (135 * accentMix));
-          blue[total] = Math.round((liftChannel(pixels[sourceIndex+2]) * (1-whiteMix-accentMix)) + (224 * whiteMix) + (90 * accentMix));
-          directionX[total] = Math.cos(angle);
-          directionY[total] = Math.sin(angle);
-          speed[total] = 0.3 + seedValue * 0.7;
-          seed[total] = seedValue;
-          total++;
-        }
+      for (let py = cell / 2; py < drawHeight; py += cell) for (let px = cell / 2; px < drawWidth; px += cell) {
+        const pi = (Math.floor(py) * drawWidth + Math.floor(px)) * 4;
+        const alpha = data[pi + 3] / 255;
+        if (alpha <= 0.5) continue;
+        const r = liftedChannel(data[pi]);
+        const g = liftedChannel(data[pi + 1]);
+        const b = liftedChannel(data[pi + 2]);
+        const lum = (r * .2126 + g * .7152 + b * .0722) / 255;
+        const rn = Math.round(r / 255 * (rLevels - 1));
+        const gn = Math.round(g / 255 * (gLevels - 1));
+        const bn = Math.round(b / 255 * (bLevels - 1));
+        const bucket = rn * gLevels * bLevels + gn * bLevels + bn;
+        const alphaStep = Math.min(SAND_CONFIG.ALPHA_STEPS - 1, Math.floor(alpha * SAND_CONFIG.ALPHA_STEPS));
+        const groupId = bucket * SAND_CONFIG.ALPHA_STEPS + alphaStep;
+        const localX = (offsetX + px) / dpr;
+        const localY = (offsetY + py) / dpr;
+        const seedValue = rand(pi + 3);
+        const angle = (SAND_CONFIG.WIND_ANGLE + (rand(pi + 8) * 2 - 1) * SAND_CONFIG.ANGLE_NOISE) * Math.PI / 180;
+        homeX[count] = localX;
+        homeY[count] = localY;
+        radius[count] = SAND_CONFIG.DOT_MIN + (SAND_CONFIG.DOT_MAX - SAND_CONFIG.DOT_MIN) * lum;
+        delay[count] = (1 - localX / width) * SAND_CONFIG.SWEEP + seedValue * SAND_CONFIG.RANDOM_DELAY;
+        directionX[count] = Math.cos(angle);
+        directionY[count] = Math.sin(angle);
+        speed[count] = 0.3 + rand(pi + 10) * 0.7;
+        seed[count] = seedValue;
+        group[count] = groupId;
+        groupCounts[groupId]++;
+        count++;
       }
 
-      particles = { x:x.slice(0,total), y:y.slice(0,total), radius:radius.slice(0,total), alpha:alpha.slice(0,total), red:red.slice(0,total), green:green.slice(0,total), blue:blue.slice(0,total), dx:directionX.slice(0,total), dy:directionY.slice(0,total), speed:speed.slice(0,total), seed:seed.slice(0,total) };
-      context.clearRect(0, 0, width, height);
+      const offsets = new Uint32Array(groupCounts.length + 1);
+      for (let i = 0; i < groupCounts.length; i++) offsets[i + 1] = offsets[i] + groupCounts[i];
+      const cursors = offsets.slice(0, groupCounts.length);
+      const indices = new Uint32Array(count);
+      for (let i = 0; i < count; i++) indices[cursors[group[i]]++] = i;
+      particles = { count, homeX, homeY, radius, delay, directionX, directionY, speed, seed, groupCounts, offsets, indices };
+      ctx.clearRect(0, 0, width, height);
     };
 
-    const render = () => {
-      frame = 0;
-      if (dead || !visible || document.hidden || !particles) return;
-      if (motionEnabled) {
-        currentProgress += (targetProgress - currentProgress) * EFFECT.LERP;
-        if (Math.abs(targetProgress - currentProgress) < 0.002) currentProgress = targetProgress;
-      } else currentProgress = 0;
-      const progress = clamp(currentProgress);
-      const fadedPhoto = 1 - smoothstep(0.02, EFFECT.PHOTO_FADE_END, progress);
-      const wrapper = canvas.closest('.hero-img-wrap');
-      wrapper?.style.setProperty('--photo-opacity', String(fadedPhoto));
-      wrapper?.style.setProperty('--photo-blur', `${smoothstep(0.02, EFFECT.PHOTO_FADE_END, progress) * 2}px`);
-      wrapper?.style.setProperty('--photo-brightness', String(1 - smoothstep(0.02, EFFECT.PHOTO_FADE_END, progress) * 0.4));
-      wrapper?.style.setProperty('--sand-progress', String(progress));
-      wrapper?.style.setProperty('--sand-lift', `${progress * -18}px`);
-      context.clearRect(0, 0, width, height);
-
-      if (!motionEnabled || progress <= 0 || progress >= EFFECT.PARTICLE_EMPTY_AT) {
-        if (Math.abs(targetProgress - currentProgress) > 0.002) requestDraw();
+    const draw = (state) => {
+      if (!visible || !state.heroVisible) return;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (!particles || !width || !height) return;
+      if (state.smoothProgress === lastPaintedProgress) return;
+      lastPaintedProgress = state.smoothProgress;
+      if (!motionEnabled || state.smoothProgress <= 0 || state.smoothProgress >= HERO_TIMELINE.CANVAS_END) {
+        ctx.clearRect(0, 0, width, height);
         return;
       }
-      const particleFade = smoothstep(0, EFFECT.PARTICLE_FADE_IN, progress);
-      const eased = smoothstep(0, 1, progress / EFFECT.PARTICLE_EMPTY_AT);
-      const time = performance.now() / 1000;
-      for (let i = 0; i < particles.x.length; i++) {
-        const delay = clamp((1 - particles.x[i] / width) * EFFECT.SWEEP + particles.seed[i] * 0.15, 0, 0.5);
-        const amount = smoothstep(delay, EFFECT.PARTICLE_EMPTY_AT, progress);
-        const scatter = eased * particles.speed[i] * EFFECT.MAX_DISTANCE;
-        const opacity = particles.alpha[i] * particleFade * (1 - amount);
-        if (opacity < 0.012) continue;
-        const turbulence = Math.sin(time * 2 + particles.seed[i] * 90) * amount * 3;
-        const px = particles.x[i] + particles.dx[i] * scatter + turbulence;
-        const py = particles.y[i] + particles.dy[i] * scatter + turbulence;
-        context.globalAlpha = opacity;
-        context.fillStyle = `rgb(${particles.red[i]},${particles.green[i]},${particles.blue[i]})`;
-        const radius = particles.radius[i] * (1 - amount * 0.4);
-        context.fillRect(px - radius / 2, py - radius / 2, radius, radius);
+
+      const p = state.smoothProgress;
+      const particleStart = Math.max(HERO_TIMELINE.HOLD_END, HERO_TIMELINE.PARTICLE_START);
+      const particleIn = smoothstep(phase(p, particleStart, HERO_TIMELINE.PARTICLE_END));
+      const travelProgress = easeInOutCubic(phase(p, HERO_TIMELINE.DISPERSE_START, HERO_TIMELINE.DISPERSE_END));
+      const dustFade = 1 - phase(p, HERO_TIMELINE.DISPERSE_END, HERO_TIMELINE.CANVAS_END);
+      ctx.clearRect(0, 0, width, height);
+      const alphaQuant = particleIn * dustFade;
+      const turbulenceTime = state.time * 2;
+      if (alphaQuant < 0.02) return;
+
+      for (let groupId = 0; groupId < particles.groupCounts.length; groupId++) {
+        const start = particles.offsets[groupId], end = particles.offsets[groupId + 1];
+        if (start === end) continue;
+        const alphaStep = groupId % SAND_CONFIG.ALPHA_STEPS;
+        ctx.globalAlpha = alphaQuant * ((alphaStep + 0.5) / SAND_CONFIG.ALPHA_STEPS);
+        ctx.fillStyle = PALETTE[Math.floor(groupId / SAND_CONFIG.ALPHA_STEPS)];
+        for (let n = start; n < end; n += drawStride) {
+          const i = particles.indices[n];
+          if (alphaQuant < 0.02) continue;
+          const localTravel = clamp01((travelProgress - particles.delay[i]) / (1 - particles.delay[i]));
+          const travel = easeOutCubic(localTravel) * SAND_CONFIG.MAX_DISTANCE * particles.speed[i];
+          const turbulence = Math.sin(turbulenceTime + particles.seed[i] * 90) * localTravel * SAND_CONFIG.TURBULENCE;
+          const x = particles.homeX[i] + particles.directionX[i] * travel + turbulence;
+          const y = particles.homeY[i] + particles.directionY[i] * travel + turbulence;
+          const dot = particles.radius[i] * (1 - localTravel * 0.4) + (drawStride === 2 ? 0.15 : 0);
+          ctx.fillRect(x - dot / 2, y - dot / 2, dot, dot);
+        }
       }
-      context.globalAlpha = 1;
-      if (Math.abs(targetProgress - currentProgress) > 0.002) requestDraw();
+      ctx.globalAlpha = 1;
     };
 
-    function requestDraw() {
-      if (!frame && visible && !document.hidden) frame = requestAnimationFrame(render);
-    }
-    const onScroll = () => {
-      targetProgress = motionEnabled ? clamp(window.scrollY / (window.innerHeight * EFFECT.SCATTER_RANGE)) : 0;
-      requestDraw();
-    };
-    const onResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => { rebuild(); onScroll(); }, 100);
-    };
+    const unsubscribe = subscribeScroll((state) => {
+      if (!visible || !state.heroVisible) return;
+      if (state.dt > 0) {
+        averageFrame = averageFrame === 0 ? state.dt * 1000 : averageFrame * .95 + state.dt * 50;
+        sampleTotal++;
+        if (sampleTotal >= SAND_CONFIG.ADAPT_FRAMES) {
+          drawStride = averageFrame > SAND_CONFIG.SLOW_FRAME_MS ? 2 : 1;
+          if (averageFrame < SAND_CONFIG.RECOVER_FRAME_MS) drawStride = 1;
+          sampleTotal = 0;
+        }
+      }
+      draw(state);
+    });
     const observer = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
-      if (visible) { onScroll(); requestDraw(); }
-      else { cancelAnimationFrame(frame); frame = 0; }
+      if (!visible) ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      else { lastPaintedProgress = -1; draw(scrollState); }
     });
     observer.observe(canvas);
-    const onVisibility = () => document.hidden ? (cancelAnimationFrame(frame), frame = 0) : requestDraw();
-    const motionObserver = new MutationObserver(syncMotion);
+    const motionObserver = new MutationObserver(() => {
+      motionEnabled = document.documentElement.dataset.motion !== 'off' && !reducedMotion.matches;
+      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      lastPaintedProgress = -1;
+    });
     motionObserver.observe(document.documentElement, { attributes:true, attributeFilter:['data-motion'] });
-    window.addEventListener('scroll', onScroll, { passive:true });
-    window.addEventListener('resize', onResize);
-    document.addEventListener('visibilitychange', onVisibility);
-    prefersReducedMotion.addEventListener?.('change', syncMotion);
-    image.onload = () => { rebuild(); onScroll(); requestDraw(); };
-    if (image.complete && image.naturalWidth) { rebuild(); onScroll(); }
-    syncMotion();
+    const onReducedMotion = () => { motionEnabled = !reducedMotion.matches && document.documentElement.dataset.motion !== 'off'; ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight); };
+    reducedMotion.addEventListener?.('change', onReducedMotion);
+    resizeObserver = new ResizeObserver(() => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(buildParticles, 100);
+    });
+    resizeObserver.observe(canvas);
+    image.onload = buildParticles;
+    if (image.complete && image.naturalWidth) buildParticles();
 
     return () => {
-      dead = true;
-      clearTimeout(resizeTimeout);
-      cancelAnimationFrame(frame);
+      unsubscribe();
       observer.disconnect();
+      resizeObserver?.disconnect();
       motionObserver.disconnect();
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onResize);
-      document.removeEventListener('visibilitychange', onVisibility);
-      prefersReducedMotion.removeEventListener?.('change', syncMotion);
+      reducedMotion.removeEventListener?.('change', onReducedMotion);
+      clearTimeout(resizeTimer);
       image.onload = null;
     };
   }, [src]);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -9,6 +9,7 @@ import Contact from './components/Contact';
 import Footer from './components/Footer';
 import Background from './components/Background';
 import { ArrowUp } from 'lucide-react';
+import useSmoothScroll from './hooks/useSmoothScroll';
 import './index.css';
 
 const Preloader = () => (
@@ -26,25 +27,14 @@ const Preloader = () => (
 
 function App() {
   const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const [cursor, setCursor] = useState({ x: -100, y: -100, active: false });
+  const progressRef = useRef(null);
+  const cursorRef = useRef(null);
+
+  useSmoothScroll({ active: !loading, progressRef, cursorRef });
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1400);
     return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    if (window.matchMedia('(pointer: coarse)').matches) return undefined;
-    const move = (event) => setCursor({ x: event.clientX, y: event.clientY, active: Boolean(event.target.closest('a, button, .project-card')) });
-    window.addEventListener('pointermove', move, { passive: true });
-    return () => window.removeEventListener('pointermove', move);
-  }, []);
-
-  useEffect(() => {
-    const update = () => setProgress(window.scrollY / (document.documentElement.scrollHeight - window.innerHeight || 1) * 100);
-    window.addEventListener('scroll', update, { passive: true });
-    return () => window.removeEventListener('scroll', update);
   }, []);
 
   return (
@@ -56,8 +46,8 @@ function App() {
       {!loading && (
         <div className="App" id="top">
           <a className="skip-link" href="#main-content">Skip to content</a>
-          <div className="scroll-progress" style={{ transform: `scaleX(${progress / 100})` }} aria-hidden="true" />
-          <div className={`custom-cursor${cursor.active ? ' is-active' : ''}`} style={{ left: cursor.x, top: cursor.y }} aria-hidden="true" />
+          <div ref={progressRef} className="scroll-progress" aria-hidden="true" />
+          <div ref={cursorRef} className="custom-cursor" aria-hidden="true" />
           <Background />
           <Navbar />
           <main id="main-content">
@@ -73,7 +63,7 @@ function App() {
             <Contact />
           </main>
           <Footer />
-          <a className="back-top" href="#top" onClick={(event) => { event.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} aria-label="Back to top"><ArrowUp size={17} /></a>
+          <a className="back-top" href="#top" aria-label="Back to top"><ArrowUp size={17} /></a>
         </div>
       )}
     </>

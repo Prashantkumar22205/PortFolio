@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Home, User, Cpu, FolderOpen, FileText, Mail } from 'lucide-react';
+import { subscribeScroll } from '../lib/scrollStore';
 
 const RESUME_LINK = "https://drive.google.com/file/d/1wbFl0agMoyyWur_G9ftdMsAkx3zbR4w6/view?usp=sharing";
 
@@ -11,13 +12,27 @@ const NAV_LINKS = [
 ];
 
 const Navbar = () => {
-  const [scrolled, setScrolled] = useState(false);
+  const navRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [motionOn, setMotionOn] = useState(() => {
+    try { return localStorage.getItem('portfolio-motion') !== 'off' && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+    catch { return true; }
+  });
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    document.documentElement.dataset.motion = motionOn ? 'on' : 'off';
+    try { localStorage.setItem('portfolio-motion', motionOn ? 'on' : 'off'); } catch { /* Storage can be unavailable. */ }
+  }, [motionOn]);
+
+  useEffect(() => {
+    let previous = null;
+    return subscribeScroll(({ scrollY }) => {
+      const scrolled = scrollY > 50;
+      if (scrolled !== previous) {
+        navRef.current?.classList.toggle('scrolled', scrolled);
+        previous = scrolled;
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -48,7 +63,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className={`navbar${scrolled ? ' scrolled' : ''}`} role="navigation" aria-label="Main navigation">
+      <nav ref={navRef} className="navbar" role="navigation" aria-label="Main navigation">
         <a href="#home" className="nav-logo" aria-label="Prashant Kumar — Home">Prashant</a>
 
         <div className="nav-links">
@@ -62,6 +77,8 @@ const Navbar = () => {
             <Mail size={14} /> Contact
           </a>
         </div>
+
+        <button type="button" className="motion-toggle" onClick={() => setMotionOn((value) => !value)} aria-pressed={motionOn}>Motion {motionOn ? 'on' : 'off'}</button>
 
         <button
           className={`hamburger${menuOpen ? ' open' : ''}`}
@@ -83,6 +100,7 @@ const Navbar = () => {
         <a href="#contact" className="nav-link nav-cta" onClick={closeMenu}>
           <Mail size={14} /> Contact
         </a>
+        <button type="button" className="motion-toggle" onClick={() => setMotionOn((value) => !value)} aria-pressed={motionOn}>Motion {motionOn ? 'on' : 'off'}</button>
       </div>
     </>
   );
