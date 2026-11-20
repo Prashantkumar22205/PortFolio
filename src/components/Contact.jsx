@@ -45,9 +45,9 @@ const Contact = () => {
     <motion.div animate={controls}>
       <section id="contact" className="section">
         <div className="section-inner">
-          <motion.p className="section-tag" {...fadeUp(0)}>// get in touch</motion.p>
+          <motion.p className="section-tag" {...fadeUp(0)}>04 / CONTACT <span>Have something in mind?</span></motion.p>
           <motion.h2 className="section-title" {...fadeUp(0.05)}>
-            Let's <span className="accent">Connect</span>
+            Something great starts with <em>a hello.</em>
           </motion.h2>
 
           <div className="contact-grid">

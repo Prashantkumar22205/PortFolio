@@ -78,7 +78,7 @@ const Projects = () => {
     <motion.div animate={controls}>
       <section id="projects" className="section">
         <div className="section-inner">
-          <motion.p className="section-tag" {...fadeUp(0)}>// what I've built</motion.p>
+          <motion.p className="section-tag" {...fadeUp(0)}>02 / SELECTED WORK <span>Ideas made real</span></motion.p>
           <motion.h2 className="section-title" {...fadeUp(0.05)}>
             My Recent <span className="accent">Works</span>
           </motion.h2>

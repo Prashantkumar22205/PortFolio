@@ -53,7 +53,7 @@ const Navbar = () => {
 
         <div className="nav-links">
           {NAV_LINKS.map(({ href, icon, label }) => (
-            <a key={href} href={href} className="nav-link">{icon} {label}</a>
+            <a key={href} href={href} className="nav-link">{icon}<span className="roll-window"><span className="roll-label"><span>{label}</span><span aria-hidden="true">{label}</span></span></span></a>
           ))}
           <a href={RESUME_LINK} className="nav-link" target="_blank" rel="noopener noreferrer">
             <FileText size={14} /> Resume

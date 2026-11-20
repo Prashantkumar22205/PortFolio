@@ -1,13 +1,14 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
 import {
   DiJavascript1, DiReact, DiNodejs, DiMongodb, DiGit, DiHtml5, DiCss3, DiPython,
 } from 'react-icons/di';
 import {
-  SiExpress, SiPostman, SiCloudinary, SiDocker, SiTailwindcss,
+  SiExpress, SiPostman, SiCloudinary, SiTailwindcss,
   SiBootstrap, SiVite, SiCplusplus, SiMysql, SiGithub,
-  SiVercel, SiRender, SiRedux, SiGoogle,
+  SiVercel, SiRender, SiGoogle,
 } from 'react-icons/si';
-import { ShieldCheck, FileText, KeyRound, Globe, BrainCircuit, Code, Terminal, Workflow, Cloud } from 'lucide-react';
+import { ShieldCheck, FileText, KeyRound, Globe, BrainCircuit, Code, Cloud } from 'lucide-react';
 import { useAntigravity } from '../hooks/useAntigravity';
 
 const fadeUp = (delay = 0) => ({
@@ -86,12 +87,19 @@ const LEARNING = [
 
 const Skills = () => {
   const controls = useAntigravity();
+  const [active, setActive] = useState(0);
+  const disciplines = [
+    { label: 'Frontend', groups: [0], note: 'Interfaces built to feel clear, responsive, and quick.' },
+    { label: 'Backend', groups: [1], note: 'APIs, authentication, and server logic designed to work together.' },
+    { label: 'Database & Tools', groups: [4], note: 'Practical tools for shipping, storing, and maintaining projects.' },
+    { label: 'AI', groups: [2], note: 'Connecting useful AI capabilities to real product workflows.' },
+  ];
 
   return (
     <motion.div animate={controls}>
       <section id="skills" className="section">
         <div className="section-inner">
-          <motion.p className="section-tag" {...fadeUp(0)}>// what I work with</motion.p>
+          <motion.p className="section-tag" {...fadeUp(0)}>03 / SKILLS <span>What I work with</span></motion.p>
           <motion.h2 className="section-title" {...fadeUp(0.05)}>
             My <span className="accent">Skillset & Tools</span>
           </motion.h2>
@@ -99,8 +107,13 @@ const Skills = () => {
             Technologies, frameworks, and developer tools I use to build robust, scalable applications.
           </motion.p>
 
+          <div className="discipline-tabs" role="tablist" aria-label="Choose a discipline">{disciplines.map((item, index) => <button role="tab" aria-selected={active === index} className={active === index ? 'discipline-tab active' : 'discipline-tab'} onClick={() => setActive(index)} key={item.label}>{String(index + 1).padStart(2, '0')} / {item.label}</button>)}</div>
+          <p className="discipline-note">{disciplines[active].note}</p>
+          <ol className="skills-steps"><li><b>01</b> Understand the problem</li><li><b>02</b> Choose the right tools</li><li><b>03</b> Build, test, improve</li></ol>
           <div className="skills-wrap">
-            {SKILL_GROUPS.map(({ label, skills }, gi) => (
+            <AnimatePresence mode="wait"><motion.div key={active} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}>{disciplines[active].groups.map((gi) => {
+              const { label, skills } = SKILL_GROUPS[gi];
+              return (
               <motion.div key={label} {...fadeUp(0.1 + gi * 0.06)}>
                 <div className="skill-group-title">{label}</div>
                 <div className="skills-grid">
@@ -112,7 +125,8 @@ const Skills = () => {
                   ))}
                 </div>
               </motion.div>
-            ))}
+              );
+            })}</motion.div></AnimatePresence>
 
             {/* Currently Learning */}
             <motion.div {...fadeUp(0.4)}>

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { ArrowUpRight } from 'lucide-react';
 import { useAntigravity } from '../hooks/useAntigravity';
 import profile from '../assets/pic3.png';
+import SandPortrait from './SandPortrait';
 
 const RESUME_LINK = "https://drive.google.com/file/d/1wbFl0agMoyyWur_G9ftdMsAkx3zbR4w6/view?usp=sharing";
 
@@ -28,8 +30,11 @@ const Hero = () => {
     } else if (deleting && displayed.length > 0) {
       timeout = setTimeout(() => setDisplayed(displayed.slice(0, -1)), 40);
     } else {
-      setDeleting(false);
-      setRoleIndex((i) => (i + 1) % ROLES.length);
+      timeout = setTimeout(() => {
+        setDisplayed('');
+        setDeleting(false);
+        setRoleIndex((i) => (i + 1) % ROLES.length);
+      }, 0);
     }
     return () => clearTimeout(timeout);
   }, [displayed, deleting, roleIndex]);
@@ -94,10 +99,21 @@ const Hero = () => {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, ease: 'easeOut', delay: 0.15 }}
         >
-          <img src={profile} alt="Prashant Kumar — developer illustration"  className="hero-img" />
+          <div className="hero-ghost" aria-hidden="true">PRASHANT</div>
+          <div className="hero-portrait-frame" aria-hidden="true" />
+          <div className="portrait-stack">
+            <img src={profile} alt="" aria-hidden="true" className="hero-photo-underlay" />
+            <SandPortrait src={profile} alt="Prashant Kumar" className="hero-img sand-portrait" />
+          </div>
+          <div className="hero-chip chip-react">React</div><div className="hero-chip chip-node">Node.js</div>
+          <div className="hero-chip chip-mongo">MongoDB</div><div className="hero-chip chip-express">Express</div><div className="hero-chip chip-gemini">Gemini AI</div>
+          <div className="hero-stat hero-stat-one"><strong>4+</strong><span>Projects shipped</span></div>
+          <div className="hero-stat hero-stat-two"><strong>MERN</strong><span>Full stack</span></div>
+          <div className="orbit-badge" aria-label="Available for internships and full-time roles"><svg viewBox="0 0 100 100" aria-hidden="true"><defs><path id="badge-circle" d="M50,50 m-36,0 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0" /></defs><text><textPath href="#badge-circle">AVAILABLE FOR INTERNSHIPS • FULL-TIME ROLES • </textPath></text></svg><ArrowUpRight size={20} /></div>
         </motion.div>
 
       </div>
+      <div className="hero-bottom"><span><i className="scroll-line" /> Scroll to discover</span><span>01 / PRESENCE</span></div>
     </motion.section>
   );
 };

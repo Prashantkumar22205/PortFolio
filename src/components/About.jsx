@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import Tilt from 'react-parallax-tilt';
 import { useAntigravity } from '../hooks/useAntigravity';
+import secondaryPhoto from '../assets/pic.png';
 
 
 const fadeUp = (delay = 0) => ({
@@ -17,9 +18,9 @@ const About = () => {
     <motion.div animate={controls}>
       <section id="about" className="section">
         <div className="section-inner">
-          <motion.p className="section-tag" {...fadeUp(0)}>// who am I</motion.p>
+          <motion.p className="section-tag" {...fadeUp(0)}>01 / ABOUT <span>A little about me</span></motion.p>
           <motion.h2 className="section-title" {...fadeUp(0.05)}>
-            Let Me <span className="accent">Introduce</span> Myself
+            Technology is the starting point. <em>People are the point.</em>
           </motion.h2>
 
           <div className="about-grid">
@@ -64,7 +65,8 @@ const About = () => {
             </motion.div>
 
             {/* Right: code card */}
-            <motion.div style={{ display: 'flex', flexDirection: 'column', gap: 28 }} {...fadeUp(0.2)}>
+            <motion.div className="about-visual-column" {...fadeUp(0.2)}>
+              <figure className="about-photo-card"><img src={secondaryPhoto} alt="Prashant Kumar" loading="lazy" /><figcaption>Prashant Kumar <span>· Developer & student</span></figcaption><span className="photo-tape" aria-hidden="true" /></figure>
               <Tilt tiltMaxAngleX={6} tiltMaxAngleY={6} transitionSpeed={2000} scale={1.01}>
                 <div className="code-card">
                   <div className="code-card-header">
